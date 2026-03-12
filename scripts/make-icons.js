@@ -122,24 +122,70 @@ function downscale(src, sw, sh, dw, dh) {
   return dst;
 }
 
-// ── ICO builder (single 256×256 PNG frame) ───────────────────────────────────
-function makeICO(pngBuf) {
+// ── ICO builder (16, 32, 48 as BMP + 256 as PNG) ─────────────────────────────
+function makeBMPFrame(pixels, w, h) {
+  const hdr = Buffer.alloc(40);
+  hdr.writeUInt32LE(40, 0);         // biSize
+  hdr.writeInt32LE(w, 4);           // biWidth
+  hdr.writeInt32LE(h * 2, 8);       // biHeight (doubled: XOR + AND masks)
+  hdr.writeUInt16LE(1, 12);         // biPlanes
+  hdr.writeUInt16LE(32, 14);        // biBitCount
+  hdr.writeUInt32LE(0, 16);         // biCompression (BI_RGB)
+  hdr.writeUInt32LE(w * h * 4, 20); // biSizeImage
+
+  // Pixel data: BGRA, bottom-to-top
+  const pixBuf = Buffer.alloc(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    const srcRow = h - 1 - y; // flip vertically
+    for (let x = 0; x < w; x++) {
+      const si = (srcRow * w + x) * 4;
+      const di = (y * w + x) * 4;
+      pixBuf[di]   = pixels[si+2]; // B
+      pixBuf[di+1] = pixels[si+1]; // G
+      pixBuf[di+2] = pixels[si];   // R
+      pixBuf[di+3] = pixels[si+3]; // A
+    }
+  }
+
+  // AND mask: all zeros (rely on alpha), padded to 4-byte rows
+  const maskRowBytes = Math.ceil(w / 32) * 4;
+  const mask = Buffer.alloc(maskRowBytes * h, 0);
+
+  return Buffer.concat([hdr, pixBuf, mask]);
+}
+
+function makeICO(pngBuf256) {
+  const sizes = [16, 32, 48]; // BMP frames
+  const frames = sizes.map(s => {
+    const scaled = downscale(px, W, H, s, s);
+    return makeBMPFrame(scaled, s, s);
+  });
+  frames.push(pngBuf256); // 256×256 as PNG
+
+  const count  = frames.length;
   const header = Buffer.alloc(6);
-  header.writeUInt16LE(0, 0); // reserved
-  header.writeUInt16LE(1, 2); // type: ICO
-  header.writeUInt16LE(1, 4); // count
+  header.writeUInt16LE(0, 0);
+  header.writeUInt16LE(1, 2); // ICO type
+  header.writeUInt16LE(count, 4);
 
-  const entry = Buffer.alloc(16);
-  entry[0] = 0;  // width  (0 = 256)
-  entry[1] = 0;  // height (0 = 256)
-  entry[2] = 0;  // color count
-  entry[3] = 0;  // reserved
-  entry.writeUInt16LE(1,  4); // planes
-  entry.writeUInt16LE(32, 6); // bpp
-  entry.writeUInt32LE(pngBuf.length, 8);
-  entry.writeUInt32LE(6 + 16, 12); // offset = header + one entry
+  const dirSize = count * 16;
+  let offset = 6 + dirSize;
+  const entries = frames.map((frame, i) => {
+    const s   = sizes[i] || 256;
+    const ent = Buffer.alloc(16);
+    ent[0] = s === 256 ? 0 : s; // width  (0 = 256)
+    ent[1] = s === 256 ? 0 : s; // height
+    ent[2] = 0;  // color count
+    ent[3] = 0;  // reserved
+    ent.writeUInt16LE(1,  4);
+    ent.writeUInt16LE(32, 6);
+    ent.writeUInt32LE(frame.length, 8);
+    ent.writeUInt32LE(offset, 12);
+    offset += frame.length;
+    return ent;
+  });
 
-  return Buffer.concat([header, entry, pngBuf]);
+  return Buffer.concat([header, ...entries, ...frames]);
 }
 
 // ── Write files ───────────────────────────────────────────────────────────────
