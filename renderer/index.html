@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KeepTrack</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="logo">
+      <span class="logo-word">KEEPTRACK</span>
+      <span class="logo-sub">TV &amp; Movie Tracker</span>
+    </div>
+    <div class="nav-right">
+      <div class="vlc-badge" id="vlc-status" title="VLC not connected" style="display:none">
+        <div class="vlc-dot" id="vlc-dot"></div>
+        <span id="vlc-label">VLC Connected</span>
+      </div>
+      <button class="btn" id="btn-settings">
+        Settings
+      </button>
+      <button class="btn btn-primary" id="btn-add">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add
+      </button>
+    </div>
+  </nav>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-tab="all">All</button>
+      <button class="tab watching" data-tab="watching">Watching</button>
+      <button class="tab finished" data-tab="finished">Finished</button>
+      <button class="tab wishlist" data-tab="wishlist">Wishlist</button>
+    </div>
+    <div class="search-row">
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-input" id="search-input" type="text" placeholder="Search titles…" />
+      </div>
+    </div>
+  </div>
+  <div class="entry-count"><span id="entry-count-val">0</span> entries</div>
+
+  <!-- Card grid -->
+  <div class="grid" id="card-list">
+    <div class="empty-state" id="empty-state" style="display:none">
+      <p>Nothing here yet.<br>Click <strong>+ Add</strong> to get started.</p>
+    </div>
+  </div>
+
+  <!-- Add/Edit modal -->
+  <div class="modal-overlay" id="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Add Entry</h2>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="poster-picker" id="poster-picker">
+          <div class="poster-preview" id="poster-preview"><span>No image</span></div>
+          <button class="btn" id="btn-pick-poster">Choose Image</button>
+          <button class="btn" id="btn-search-poster">Search Online</button>
+          <button class="btn-danger-sm" id="btn-clear-poster" style="display:none">Remove</button>
+        </div>
+        <div class="form-fields">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" id="f-name" placeholder="Show or movie name" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Type</label>
+              <div class="seg-group" id="seg-type">
+                <button class="seg active" data-val="show">TV Show</button>
+                <button class="seg" data-val="movie">Movie</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <div class="seg-group" id="seg-status">
+                <button class="seg active" data-val="watching">Watching</button>
+                <button class="seg" data-val="finished">Finished</button>
+                <button class="seg" data-val="wishlist">Wishlist</button>
+              </div>
+            </div>
+          </div>
+          <div class="field-row" id="tv-fields">
+            <div class="field">
+              <label>Season</label>
+              <input type="number" id="f-season" min="1" value="1" />
+            </div>
+            <div class="field">
+              <label>Episode</label>
+              <input type="number" id="f-episode" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label>Total Ep.</label>
+              <input type="number" id="f-total-ep" min="0" value="0" placeholder="auto" />
+            </div>
+          </div>
+          <div class="field-row" id="movie-fields" style="display:none">
+            <div class="field">
+              <label>Watched (h)</label>
+              <input type="number" id="f-hours" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label>Minutes</label>
+              <input type="number" id="f-minutes" min="0" max="59" value="0" />
+            </div>
+            <div class="field">
+              <label>Seconds</label>
+              <input type="number" id="f-seconds" min="0" max="59" value="0" />
+            </div>
+          </div>
+          <div class="field-row" id="movie-total-fields" style="display:none">
+            <div class="field">
+              <label>Total dur. (h)</label>
+              <input type="number" id="f-total-hours" min="0" value="0" placeholder="auto" />
+            </div>
+            <div class="field">
+              <label>Minutes</label>
+              <input type="number" id="f-total-minutes" min="0" max="59" value="0" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Rating <span id="rating-display">0.0</span> / 5</label>
+            <input type="range" id="f-rating" min="0" max="5" step="0.1" value="0" />
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea id="f-desc" rows="3" placeholder="Optional notes…"></textarea>
+          </div>
+        </div>
+      </div>
+      <!-- Poster search results -->
+      <div class="poster-search-results" id="poster-results" style="display:none"></div>
+
+      <div class="modal-footer">
+        <button class="btn" id="btn-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settings-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close" id="settings-close">✕</button>
+      </div>
+      <div class="modal-body settings-body">
+        <div class="settings-section" style="margin-bottom:20px">
+          <div class="settings-group-label">TMDB Poster Search</div>
+          <p class="settings-hint">Free API key from <strong>themoviedb.org → Settings → API</strong>. Used to auto-fetch poster images.</p>
+          <div class="form-fields" style="margin-top:12px">
+            <div class="field">
+              <label>TMDB API Key</label>
+              <input type="text" id="s-tmdb-key" placeholder="Paste your API key here" />
+            </div>
+          </div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-group-label">VLC Integration</div>
+          <p class="settings-hint">Enable in VLC: <strong>Tools → Preferences → Show All → Interface → Main interfaces</strong> → check <strong>Web</strong>, then restart VLC.</p>
+          <div class="form-fields" style="margin-top:12px">
+            <div class="field">
+              <label>Host</label>
+              <input type="text" id="s-vlc-host" placeholder="localhost" />
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Port</label>
+                <input type="number" id="s-vlc-port" placeholder="8080" min="1" max="65535" />
+              </div>
+              <div class="field" style="flex:2">
+                <label>Password</label>
+                <input type="text" id="s-vlc-password" placeholder="leave empty if none" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="settings-cancel">Cancel</button>
+        <button class="btn btn-primary" id="settings-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

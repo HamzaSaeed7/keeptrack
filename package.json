@@ -1,0 +1,38 @@
+{
+  "name": "keeptrack",
+  "version": "1.0.0",
+  "description": "Track your TV shows and movies",
+  "main": "main.js",
+  "scripts": {
+    "start": "set ELECTRON_RUN_AS_NODE=&& node_modules\\electron\\dist\\electron.exe .",
+    "make-icons": "node scripts/make-icons.js",
+    "build": "npm run make-icons && electron-builder --win --x64"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "build": {
+    "appId": "com.keeptrack.app",
+    "productName": "KeepTrack",
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.ico"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "fonts/**/*",
+      "node_modules/**/*",
+      "!node_modules/electron-builder/**"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2"
+  }
+}
