@@ -29,16 +29,18 @@ function initDb() {
       description TEXT DEFAULT '',
       poster_path TEXT DEFAULT '',
       status      TEXT DEFAULT 'watching',
-      total       INTEGER DEFAULT 0,
-      created_at  TEXT DEFAULT (datetime('now'))
+      total        INTEGER DEFAULT 0,
+      created_at   TEXT DEFAULT (datetime('now')),
+      last_watched TEXT DEFAULT NULL
     )
   `);
   try { db.exec('ALTER TABLE shows ADD COLUMN total INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE shows ADD COLUMN last_watched TEXT DEFAULT NULL'); } catch {}
 }
 
 // ── IPC Handlers ─────────────────────────────────────────────────────────────
 ipcMain.handle('db:getAll', () => {
-  return db.prepare('SELECT * FROM shows ORDER BY created_at DESC').all();
+  return db.prepare('SELECT * FROM shows ORDER BY last_watched DESC, created_at DESC').all();
 });
 
 ipcMain.handle('db:add', (_, entry) => {
@@ -55,7 +57,8 @@ ipcMain.handle('db:update', (_, entry) => {
     UPDATE shows SET
       name=@name, type=@type, season=@season, episode=@episode,
       watch_time=@watch_time, rating=@rating, description=@description,
-      poster_path=@poster_path, status=@status, total=@total
+      poster_path=@poster_path, status=@status, total=@total,
+      last_watched=datetime('now')
     WHERE id=@id
   `).run(entry);
   return db.prepare('SELECT * FROM shows WHERE id = ?').get(entry.id);

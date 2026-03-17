@@ -1,6 +1,6 @@
 // ── State ─────────────────────────────────────────────────────────────────
 let entries          = [];
-let activeTab        = 'all';
+let activeTab        = 'watching';
 let searchQuery      = '';
 let editingId        = null;
 let pendingPosterPath = null;
@@ -382,6 +382,10 @@ function buildCard(entry) {
     ratingEl.textContent = 'No rating yet';
   }
 
+  const lastWatchedEl = document.createElement('div');
+  lastWatchedEl.className = 'last-watched';
+  lastWatchedEl.textContent = entry.last_watched ? formatLastWatched(entry.last_watched) : '';
+
   const actions = document.createElement('div');
   actions.className = 'actions';
 
@@ -396,7 +400,7 @@ function buildCard(entry) {
   delBtn.addEventListener('click', () => deleteEntry(entry.id));
 
   actions.append(editBtn, delBtn);
-  footer.append(ratingEl, actions);
+  footer.append(ratingEl, lastWatchedEl, actions);
 
   body.append(header, progress, barWrap, footer);
   card.append(poster, body);
@@ -791,6 +795,22 @@ function posterGradient(name) {
 
 function episodeProgress(ep) {
   return Math.min(100, (ep % 13) / 13 * 100);
+}
+
+function formatLastWatched(dtStr) {
+  // SQLite stores as UTC without 'Z', so append it for correct parsing
+  const date = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T') + 'Z');
+  if (isNaN(date)) return '';
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffH   = Math.floor(diffMin / 60);
+  const diffD   = Math.floor(diffH / 24);
+  if (diffMin < 1)  return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffH   < 24) return `${diffH}h ago`;
+  if (diffD   < 7)  return `${diffD}d ago`;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
 }
 
 function formatTime(secs) {

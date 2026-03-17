@@ -395,6 +395,7 @@ nav * { -webkit-app-region: no-drag; }
   font-family: 'DM Mono', monospace;
 }
 .rating-empty { color: var(--muted); font-size: 12px; font-style: italic; }
+.last-watched { color: var(--muted); font-size: 11px; flex: 1; text-align: center; }
 
 .actions {
   display: flex;
