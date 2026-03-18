@@ -164,16 +164,22 @@ function createWindow() {
   });
 }
 
-function createTray() {
-  const trayIconPath = path.join(__dirname, 'assets', 'tray.png');
-  const icon = nativeImage.createFromPath(trayIconPath).resize({ width: 16, height: 16 });
-  tray = new Tray(icon);
-  tray.setToolTip('KeepTrack');
-
-  const contextMenu = Menu.buildFromTemplate([
+function buildTrayMenu() {
+  const loginItem = app.getLoginItemSettings();
+  return Menu.buildFromTemplate([
     {
       label: 'Show KeepTrack',
       click: () => { mainWin.show(); mainWin.focus(); }
+    },
+    { type: 'separator' },
+    {
+      label: 'Launch at startup',
+      type: 'checkbox',
+      checked: loginItem.openAtLogin,
+      click: (item) => {
+        app.setLoginItemSettings({ openAtLogin: item.checked });
+        tray.setContextMenu(buildTrayMenu());
+      }
     },
     { type: 'separator' },
     {
@@ -181,8 +187,14 @@ function createTray() {
       click: () => { app.isQuitting = true; app.quit(); }
     }
   ]);
+}
 
-  tray.setContextMenu(contextMenu);
+function createTray() {
+  const trayIconPath = path.join(__dirname, 'assets', 'tray.png');
+  const icon = nativeImage.createFromPath(trayIconPath).resize({ width: 16, height: 16 });
+  tray = new Tray(icon);
+  tray.setToolTip('KeepTrack');
+  tray.setContextMenu(buildTrayMenu());
   tray.on('double-click', () => { mainWin.show(); mainWin.focus(); });
 }
 
