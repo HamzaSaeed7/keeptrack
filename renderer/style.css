@@ -192,6 +192,20 @@ nav * { -webkit-app-region: no-drag; }
 .search-input::placeholder { color: var(--muted); }
 .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,141,238,0.12); }
 
+.rating-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.18s;
+}
+.rating-filter:focus { border-color: var(--accent); }
+.rating-filter option { background: var(--surface); }
+
 .entry-count {
   font-size: 12px;
   color: var(--muted);
@@ -240,6 +254,7 @@ nav * { -webkit-app-region: no-drag; }
   cursor: default;
   position: relative;
   animation: fadeUp 0.3s both;
+  min-height: 180px;
   max-height: 180px;
 }
 @keyframes fadeUp {

@@ -2,6 +2,7 @@
 let entries          = [];
 let activeTab        = 'watching';
 let searchQuery      = '';
+let ratingFilter     = '';
 let editingId        = null;
 let pendingPosterPath = null;
 
@@ -90,7 +91,22 @@ function parseFilename(filename) {
 }
 
 function cleanTitle(raw) {
-  return raw.replace(/[._]/g, ' ').replace(/\s+/g, ' ').trim();
+  return raw
+    .replace(/[._]/g, ' ')
+    // strip standalone year (1900–2099)
+    .replace(/\b(19|20)\d{2}\b/g, '')
+    // strip release flags
+    .replace(/\b(REMASTERED|REPACK|PROPER|EXTENDED|THEATRICAL|DIRECTORS\.?CUT|UNRATED|RETAIL|LIMITED|REMUX)\b/gi, '')
+    // strip resolution / source / codec / audio tags
+    .replace(/\b(4K|2160p|1080p|1080i|720p|480p|576p|HDR10?|DV|DOLBY|VISION|IMAX)\b/gi, '')
+    .replace(/\b(BluRay|BDRip|BRRip|WEBRip|WEB-DL|WEB|DVDRip|DVD|HDTV|AMZN|DSNP|NF|HULU|ATVP)\b/gi, '')
+    .replace(/\b(HEVC|x265|x264|AVC|H\.?264|H\.?265|AV1|XviD|DivX)\b/gi, '')
+    .replace(/\b(AAC|AC3|DTS|DD[257]\.\d|Atmos|TrueHD|FLAC|MP3|[257]\.1|2\.0)\b/gi, '')
+    // strip remaining all-caps tokens 2+ chars (scene group names like BONE, YTS, etc.)
+    .replace(/\b[A-Z][A-Z0-9]{1,}\b/g, '')
+    .replace(/\s+/g, ' ').trim()
+    // title-case result
+    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function findExistingEntry(parsedName) {
@@ -256,13 +272,26 @@ searchInput.addEventListener('input', e => {
   render();
 });
 
+document.getElementById('rating-filter').addEventListener('change', e => {
+  ratingFilter = e.target.value;
+  render();
+});
+
 // ── Render ────────────────────────────────────────────────────────────────
 function render() {
   const filtered = entries.filter(e => {
     if (activeTab !== 'all' && e.status !== activeTab) return false;
     if (searchQuery && !e.name.toLowerCase().includes(searchQuery)) return false;
+    if (ratingFilter === 'unrated' && e.rating > 0) return false;
+    if (ratingFilter === 'rated' && e.rating <= 0) return false;
+    if (ratingFilter !== '' && ratingFilter !== 'unrated' && ratingFilter !== 'rated') {
+      const min = parseFloat(ratingFilter);
+      if (e.rating < min || e.rating >= min + 1) return false;
+    }
     return true;
   });
+
+  if (ratingFilter !== '') filtered.sort((a, b) => b.rating - a.rating);
 
   Array.from(cardList.children).forEach(child => {
     if (!child.id) cardList.removeChild(child);
