@@ -24,6 +24,7 @@
   --watching:     #8C83FA;
   --finished:     #5be8b0;
   --wishlist:     #b45be8;
+  --coming:       #f0b429;
 }
 
 body {
@@ -169,6 +170,7 @@ nav * { -webkit-app-region: no-drag; }
 .tab.active.watching { color: var(--watching); }
 .tab.active.finished { color: var(--finished); }
 .tab.active.wishlist { color: var(--wishlist); }
+.tab.active.coming   { color: var(--coming); }
 
 .search-row { display: flex; align-items: center; gap: 10px; }
 .search-wrap { position: relative; }
@@ -287,6 +289,7 @@ nav * { -webkit-app-region: no-drag; }
 .card:hover::before  { opacity: 1; }
 .card.finished::before { background: var(--finished); }
 .card.wishlist::before { background: var(--wishlist); }
+.card.coming_soon::before { background: var(--coming); }
 
 /* Poster */
 .poster {
@@ -433,6 +436,32 @@ nav * { -webkit-app-region: no-drag; }
 }
 .action-btn.edit:hover { border-color: var(--accent); color: var(--accent); background: rgba(91,141,238,0.1); }
 .action-btn.del:hover  { border-color: var(--red);    color: var(--red);    background: rgba(232,91,91,0.1); }
+.action-btn.watch:hover { border-color: var(--coming); color: var(--coming); background: rgba(240,180,41,0.1); }
+.action-btn.watch.ready {
+  border-color: var(--finished);
+  color: var(--finished);
+  background: rgba(91,232,176,0.12);
+}
+
+/* ── Coming Soon countdown ───────────────────────────────────────────────── */
+.card-countdown { display: flex; flex-direction: column; gap: 3px; }
+.card-countdown .countdown-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--coming);
+  letter-spacing: -0.01em;
+}
+.card-countdown .countdown-date {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.card-countdown.ready .countdown-text { color: var(--finished); }
+
+/* Keep actions visible on Coming Soon cards so the play control is reachable */
+.card.coming_soon .actions { opacity: 1; transform: none; }
 
 /* ── Modal ───────────────────────────────────────────────────────────────── */
 .modal-overlay {
@@ -516,7 +545,7 @@ nav * { -webkit-app-region: no-drag; }
 
 /* Form fields */
 .form-fields { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
 .field label {
   font-size: 11px;
   font-weight: 600;
@@ -526,7 +555,10 @@ nav * { -webkit-app-region: no-drag; }
 }
 .field input[type="text"],
 .field input[type="number"],
+.field input[type="date"],
 .field textarea {
+  width: 100%;
+  min-width: 0;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -537,6 +569,7 @@ nav * { -webkit-app-region: no-drag; }
   font-family: 'DM Sans', sans-serif;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.field input[type="date"] { color-scheme: dark; }
 .field input:focus,
 .field textarea:focus {
   border-color: var(--accent);

@@ -37,6 +37,7 @@
       <button class="tab active watching" data-tab="watching">Watching</button>
       <button class="tab finished" data-tab="finished">Finished</button>
       <button class="tab wishlist" data-tab="wishlist">Wishlist</button>
+      <button class="tab coming" data-tab="coming_soon">Coming Soon</button>
     </div>
     <div class="search-row">
       <div class="search-wrap">
@@ -45,10 +46,10 @@
       </div>
       <select class="rating-filter" id="rating-filter" title="Filter by rating">
         <option value="">All ratings</option>
+        <option value="8">★ 8+</option>
+        <option value="6">★ 6+</option>
         <option value="4">★ 4+</option>
-        <option value="3">★ 3+</option>
         <option value="2">★ 2+</option>
-        <option value="1">★ 1+</option>
         <option value="rated">Rated</option>
         <option value="unrated">Unrated</option>
       </select>
@@ -90,14 +91,21 @@
                 <button class="seg" data-val="movie">Movie</button>
               </div>
             </div>
+          </div>
+          <div class="field-row">
             <div class="field">
               <label>Status</label>
               <div class="seg-group" id="seg-status">
                 <button class="seg active" data-val="watching">Watching</button>
                 <button class="seg" data-val="finished">Finished</button>
                 <button class="seg" data-val="wishlist">Wishlist</button>
+                <button class="seg" data-val="coming_soon">Coming Soon</button>
               </div>
             </div>
+          </div>
+          <div class="field" id="release-date-field" style="display:none">
+            <label>Release Date</label>
+            <input type="date" id="f-release-date" />
           </div>
           <div class="field-row" id="tv-fields">
             <div class="field">
@@ -138,8 +146,8 @@
             </div>
           </div>
           <div class="field">
-            <label>Rating <span id="rating-display">0.0</span> / 5</label>
-            <input type="range" id="f-rating" min="0" max="5" step="0.1" value="0" />
+            <label>Rating <span id="rating-display">0.0</span> / 10</label>
+            <input type="range" id="f-rating" min="0" max="10" step="0.1" value="0" />
           </div>
           <div class="field">
             <label>Description</label>

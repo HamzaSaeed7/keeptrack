@@ -19,34 +19,44 @@ function initDb() {
   db = new Database(DB_PATH);
   db.exec(`
     CREATE TABLE IF NOT EXISTS shows (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      type        TEXT NOT NULL DEFAULT 'show',
-      season      INTEGER DEFAULT 1,
-      episode     INTEGER DEFAULT 0,
-      watch_time  INTEGER DEFAULT 0,
-      rating      REAL DEFAULT 0,
-      description TEXT DEFAULT '',
-      poster_path TEXT DEFAULT '',
-      status      TEXT DEFAULT 'watching',
-      total        INTEGER DEFAULT 0,
-      created_at   TEXT DEFAULT (datetime('now')),
-      last_watched TEXT DEFAULT NULL
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      original_name TEXT DEFAULT '',
+      type          TEXT NOT NULL DEFAULT 'show',
+      season        INTEGER DEFAULT 1,
+      episode       INTEGER DEFAULT 0,
+      watch_time    INTEGER DEFAULT 0,
+      rating        REAL DEFAULT 0,
+      description   TEXT DEFAULT '',
+      poster_path   TEXT DEFAULT '',
+      status        TEXT DEFAULT 'watching',
+      total         INTEGER DEFAULT 0,
+      created_at    TEXT DEFAULT (datetime('now')),
+      last_watched  TEXT DEFAULT NULL,
+      release_date  TEXT DEFAULT NULL
     )
   `);
   try { db.exec('ALTER TABLE shows ADD COLUMN total INTEGER DEFAULT 0'); } catch {}
   try { db.exec('ALTER TABLE shows ADD COLUMN last_watched TEXT DEFAULT NULL'); } catch {}
+  try { db.exec("ALTER TABLE shows ADD COLUMN original_name TEXT DEFAULT ''"); } catch {}
+  try { db.exec('ALTER TABLE shows ADD COLUMN release_date TEXT DEFAULT NULL'); } catch {}
+
+  // One-time migration: ratings moved from a /5 to a /10 scale (double existing values).
+  if (db.pragma('user_version', { simple: true }) < 1) {
+    db.exec('UPDATE shows SET rating = rating * 2');
+    db.pragma('user_version = 1');
+  }
 }
 
 // ── IPC Handlers ─────────────────────────────────────────────────────────────
 ipcMain.handle('db:getAll', () => {
-  return db.prepare('SELECT * FROM shows ORDER BY last_watched DESC, created_at DESC').all();
+  return db.prepare('SELECT * FROM shows ORDER BY COALESCE(last_watched, created_at) DESC').all();
 });
 
 ipcMain.handle('db:add', (_, entry) => {
   const stmt = db.prepare(`
-    INSERT INTO shows (name, type, season, episode, watch_time, rating, description, poster_path, status, total)
-    VALUES (@name, @type, @season, @episode, @watch_time, @rating, @description, @poster_path, @status, @total)
+    INSERT INTO shows (name, original_name, type, season, episode, watch_time, rating, description, poster_path, status, total, release_date)
+    VALUES (@name, @original_name, @type, @season, @episode, @watch_time, @rating, @description, @poster_path, @status, @total, @release_date)
   `);
   const result = stmt.run(entry);
   return db.prepare('SELECT * FROM shows WHERE id = ?').get(result.lastInsertRowid);
@@ -55,9 +65,9 @@ ipcMain.handle('db:add', (_, entry) => {
 ipcMain.handle('db:update', (_, entry) => {
   db.prepare(`
     UPDATE shows SET
-      name=@name, type=@type, season=@season, episode=@episode,
+      name=@name, original_name=@original_name, type=@type, season=@season, episode=@episode,
       watch_time=@watch_time, rating=@rating, description=@description,
-      poster_path=@poster_path, status=@status, total=@total,
+      poster_path=@poster_path, status=@status, total=@total, release_date=@release_date,
       last_watched=datetime('now')
     WHERE id=@id
   `).run(entry);

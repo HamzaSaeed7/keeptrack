@@ -24,6 +24,8 @@ const fTotalHours   = document.getElementById('f-total-hours');
 const fTotalMinutes = document.getElementById('f-total-minutes');
 const fRating       = document.getElementById('f-rating');
 const fDesc         = document.getElementById('f-desc');
+const fReleaseDate  = document.getElementById('f-release-date');
+const releaseDateField = document.getElementById('release-date-field');
 const ratingDisplay = document.getElementById('rating-display');
 const posterPreview = document.getElementById('poster-preview');
 const btnClearPoster = document.getElementById('btn-clear-poster');
@@ -87,6 +89,12 @@ function parseFilename(filename) {
   if (m) return { name: cleanTitle(m[1]), season: parseInt(m[2]), episode: parseInt(m[3]) };
   m = clean.match(/^(.+?)[.\s_-]+(\d{1,2})x(\d{1,3})/i);
   if (m) return { name: cleanTitle(m[1]), season: parseInt(m[2]), episode: parseInt(m[3]) };
+  // Anime-style: "Title - 13", "Title - 013", "One Piece - 1089", en/em dashes, "v2" re-releases
+  m = clean.match(/^(.+?)\s*[-–—]\s*(\d{1,4})(?:v\d+)?\s*$/);
+  if (m && !/^(19|20)\d{2}$/.test(m[2])) return { name: cleanTitle(m[1]), season: 1, episode: parseInt(m[2]) };
+  // "Title Episode 13" / "Title Ep 13"
+  m = clean.match(/^(.+?)[.\s_-]+(?:Episode|Ep)\s?(\d{1,4})\b/i);
+  if (m && !/^(19|20)\d{2}$/.test(m[2])) return { name: cleanTitle(m[1]), season: 1, episode: parseInt(m[2]) };
   return { name: cleanTitle(clean), season: null, episode: null };
 }
 
@@ -113,7 +121,9 @@ function findExistingEntry(parsedName) {
   const lower = parsedName.toLowerCase();
   return entries.find(e => {
     const n = e.name.toLowerCase();
-    return n === lower || lower.includes(n) || n.includes(lower);
+    const orig = (e.original_name || '').toLowerCase();
+    return n === lower || lower.includes(n) || n.includes(lower)
+        || (orig && (orig === lower || lower.includes(orig) || orig.includes(lower)));
   }) || null;
 }
 
@@ -159,10 +169,10 @@ async function handleNowPlaying(filename, vlcTime) {
     const isShow = parsed.season !== null;
     const entryType = isShow ? 'show' : 'movie';
     const newEntry = await window.api.addEntry({
-      name: parsed.name, type: entryType,
+      name: parsed.name, original_name: parsed.name, type: entryType,
       season: parsed.season || 1, episode: parsed.episode || 0,
       watch_time: isShow ? 0 : Math.floor(vlcTime || 0),
-      rating: 0, description: '', poster_path: '', status: 'watching', total: 0
+      rating: 0, description: '', poster_path: '', status: 'watching', total: 0, release_date: null
     });
     const posterUrl = await fetchTMDBPoster(parsed.name, entryType);
     if (posterUrl) {
@@ -254,6 +264,7 @@ async function init() {
   render();
   pollVLC();
   setInterval(pollVLC, 5000);
+  setInterval(refreshCountdowns, 60000);
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -286,12 +297,21 @@ function render() {
     if (ratingFilter === 'rated' && e.rating <= 0) return false;
     if (ratingFilter !== '' && ratingFilter !== 'unrated' && ratingFilter !== 'rated') {
       const min = parseFloat(ratingFilter);
-      if (e.rating < min || e.rating >= min + 1) return false;
+      if (e.rating < min) return false;
     }
     return true;
   });
 
-  if (ratingFilter !== '') filtered.sort((a, b) => b.rating - a.rating);
+  if (ratingFilter !== '') {
+    filtered.sort((a, b) => b.rating - a.rating);
+  } else {
+    // Latest first: most recently watched (or added) at the top
+    filtered.sort((a, b) => {
+      const ka = a.last_watched || a.created_at || '';
+      const kb = b.last_watched || b.created_at || '';
+      return ka < kb ? 1 : ka > kb ? -1 : 0;
+    });
+  }
 
   Array.from(cardList.children).forEach(child => {
     if (!child.id) cardList.removeChild(child);
@@ -309,6 +329,7 @@ function render() {
 const EDIT_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const DEL_ICON  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 const STAR_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const PLAY_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>`;
 
 // ── Build a card ──────────────────────────────────────────────────────────
 function buildCard(entry) {
@@ -359,7 +380,23 @@ function buildCard(entry) {
 
   let progressBarFill = null;
 
-  if (entry.type === 'show') {
+  if (entry.status === 'coming_soon') {
+    const cd = document.createElement('div');
+    cd.className = 'card-countdown';
+    const info = formatCountdown(entry.release_date);
+    if (info.ready) cd.classList.add('ready');
+    const txt = document.createElement('span');
+    txt.className = 'countdown-text';
+    txt.textContent = info.text;
+    cd.appendChild(txt);
+    if (entry.release_date) {
+      const dateEl = document.createElement('span');
+      dateEl.className = 'countdown-date';
+      dateEl.textContent = formatReleaseDate(entry.release_date);
+      cd.appendChild(dateEl);
+    }
+    progress.appendChild(cd);
+  } else if (entry.type === 'show') {
     progress.appendChild(makeProg('Season', entry.season, val => saveField(entry, 'season', val), 1));
     progress.appendChild(makeProg('Episode', entry.episode, async val => {
       await saveField(entry, 'episode', val);
@@ -382,21 +419,24 @@ function buildCard(entry) {
     progress.appendChild(timeItem);
   }
 
-  // Progress bar
-  const barWrap = document.createElement('div');
-  barWrap.className = 'progress-bar-wrap';
-  progressBarFill = document.createElement('div');
-  progressBarFill.className = 'progress-bar-fill';
-  if (entry.type === 'show') {
-    progressBarFill.style.width = entry.total > 0
-      ? Math.min(100, (entry.episode / entry.total) * 100) + '%'
-      : episodeProgress(entry.episode) + '%';
-  } else {
-    progressBarFill.style.width = entry.total > 0
-      ? Math.min(100, (entry.watch_time / entry.total) * 100) + '%'
-      : (entry.status === 'finished' ? '100%' : '0%');
+  // Progress bar (not shown for Coming Soon entries)
+  let barWrap = null;
+  if (entry.status !== 'coming_soon') {
+    barWrap = document.createElement('div');
+    barWrap.className = 'progress-bar-wrap';
+    progressBarFill = document.createElement('div');
+    progressBarFill.className = 'progress-bar-fill';
+    if (entry.type === 'show') {
+      progressBarFill.style.width = entry.total > 0
+        ? Math.min(100, (entry.episode / entry.total) * 100) + '%'
+        : episodeProgress(entry.episode) + '%';
+    } else {
+      progressBarFill.style.width = entry.total > 0
+        ? Math.min(100, (entry.watch_time / entry.total) * 100) + '%'
+        : (entry.status === 'finished' ? '100%' : '0%');
+    }
+    barWrap.appendChild(progressBarFill);
   }
-  barWrap.appendChild(progressBarFill);
 
   // Footer
   const footer = document.createElement('div');
@@ -405,7 +445,7 @@ function buildCard(entry) {
   const ratingEl = document.createElement('div');
   if (entry.rating) {
     ratingEl.className = 'rating';
-    ratingEl.innerHTML = `${STAR_ICON} ${Number(entry.rating).toFixed(1)} / 5.0`;
+    ratingEl.innerHTML = `${STAR_ICON} ${Number(entry.rating).toFixed(1)} / 10.0`;
   } else {
     ratingEl.className = 'rating-empty';
     ratingEl.textContent = 'No rating yet';
@@ -417,6 +457,16 @@ function buildCard(entry) {
 
   const actions = document.createElement('div');
   actions.className = 'actions';
+
+  if (entry.status === 'coming_soon') {
+    const watchBtn = document.createElement('button');
+    watchBtn.className = 'action-btn watch';
+    watchBtn.title = 'Start watching';
+    watchBtn.innerHTML = PLAY_ICON;
+    if (formatCountdown(entry.release_date).ready) watchBtn.classList.add('ready');
+    watchBtn.addEventListener('click', () => startWatching(entry));
+    actions.appendChild(watchBtn);
+  }
 
   const editBtn = document.createElement('button');
   editBtn.className = 'action-btn edit';
@@ -431,7 +481,8 @@ function buildCard(entry) {
   actions.append(editBtn, delBtn);
   footer.append(ratingEl, lastWatchedEl, actions);
 
-  body.append(header, progress, barWrap, footer);
+  if (barWrap) body.append(header, progress, barWrap, footer);
+  else         body.append(header, progress, footer);
   card.append(poster, body);
   return card;
 }
@@ -484,6 +535,8 @@ async function saveField(entry, field, value) {
   const idx = entries.findIndex(e => e.id === entry.id);
   if (idx !== -1) entries[idx] = result;
   entry[field] = value;
+  // Bumping season/episode counts as watching → re-sort so it moves to the top
+  render();
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────
@@ -492,6 +545,15 @@ async function deleteEntry(id) {
   await window.api.deleteEntry(id);
   entries = entries.filter(e => e.id !== id);
   render();
+}
+
+// ── Coming Soon → Watching ──────────────────────────────────────────────────
+async function startWatching(entry) {
+  const updated = await window.api.updateEntry({ ...entry, status: 'watching' });
+  const idx = entries.findIndex(e => e.id === entry.id);
+  if (idx !== -1) entries[idx] = updated;
+  render();
+  showToast(`Now watching "${entry.name}"`);
 }
 
 // ── Modal open/close ──────────────────────────────────────────────────────
@@ -537,6 +599,7 @@ function resetForm() {
   fRating.value       = 0;
   ratingDisplay.textContent = '0.0';
   fDesc.value    = '';
+  fReleaseDate.value = '';
   pendingPosterUrl = null;
   setPosterPreview(null);
   setType('show');
@@ -550,6 +613,7 @@ function populateForm(entry) {
   fRating.value = entry.rating || 0;
   ratingDisplay.textContent = Number(entry.rating || 0).toFixed(1);
   fDesc.value   = entry.description || '';
+  fReleaseDate.value = entry.release_date || '';
   setType(entry.type);
   setStatus(entry.status);
   if (entry.type === 'show') {
@@ -585,6 +649,7 @@ function setStatus(status) {
   document.querySelectorAll('#seg-status .seg').forEach(b => {
     b.classList.toggle('active', b.dataset.val === status);
   });
+  releaseDateField.style.display = status === 'coming_soon' ? 'flex' : 'none';
 }
 
 function getPosterPreview() {
@@ -743,6 +808,13 @@ async function saveEntry() {
   const rating = parseFloat(fRating.value) || 0;
   const desc   = fDesc.value.trim();
 
+  const releaseDate = status === 'coming_soon' ? (fReleaseDate.value || null) : null;
+  if (status === 'coming_soon' && !releaseDate) {
+    showToast('Pick a release date for Coming Soon');
+    fReleaseDate.focus();
+    return;
+  }
+
   let season = 1, episode = 0, watchTime = 0, formTotal = 0;
   if (type === 'show') {
     season    = parseInt(fSeason.value)   || 1;
@@ -770,8 +842,9 @@ async function saveEntry() {
     }
     let total = formTotal || await fetchTMDBMeta(name, type, season);
     const updated = await window.api.updateEntry({
-      id: editingId, name, type, season, episode,
-      watch_time: watchTime, rating, description: desc, poster_path: posterPath, status, total
+      id: editingId, name, original_name: existing?.original_name || name, type, season, episode,
+      watch_time: watchTime, rating, description: desc, poster_path: posterPath, status, total,
+      release_date: releaseDate
     });
     const idx = entries.findIndex(e => e.id === editingId);
     if (idx !== -1) entries[idx] = updated;
@@ -781,8 +854,9 @@ async function saveEntry() {
       (!pendingPosterUrl && !pendingPosterPath) ? fetchTMDBPoster(name, type) : Promise.resolve(null)
     ]);
     const newEntry = await window.api.addEntry({
-      name, type, season, episode,
-      watch_time: watchTime, rating, description: desc, poster_path: '', status, total
+      name, original_name: name, type, season, episode,
+      watch_time: watchTime, rating, description: desc, poster_path: '', status, total,
+      release_date: releaseDate
     });
     let posterPath = '';
     if (pendingPosterUrl) {
@@ -848,6 +922,39 @@ function formatTime(secs) {
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
   return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ── Coming Soon countdown ───────────────────────────────────────────────────
+function formatCountdown(dateStr) {
+  if (!dateStr) return { ready: false, text: 'No release date' };
+  const target = new Date(dateStr + 'T00:00:00');
+  const diff = target - new Date();
+  if (isNaN(target) || diff <= 0) return { ready: true, text: 'Go watch now' };
+  const days = Math.ceil(diff / 86400000);
+  if (days <= 1)  return { ready: false, text: 'Tomorrow' };
+  if (days < 30)  return { ready: false, text: `in ${days} days` };
+  if (days < 365) return { ready: false, text: `in ${Math.round(days / 30.44)} months` };
+  return { ready: false, text: `in ${Math.round(days / 365)} yr` };
+}
+
+function formatReleaseDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Refresh on-screen countdowns in place (no full re-render) so cards flip to
+// "Go watch now" when the release date passes while the app is open.
+function refreshCountdowns() {
+  document.querySelectorAll('.card.coming_soon').forEach(card => {
+    const entry = entries.find(e => e.id === parseInt(card.dataset.id));
+    if (!entry) return;
+    const info = formatCountdown(entry.release_date);
+    const txt = card.querySelector('.countdown-text');
+    if (txt) txt.textContent = info.text;
+    card.querySelector('.card-countdown')?.classList.toggle('ready', info.ready);
+    card.querySelector('.action-btn.watch')?.classList.toggle('ready', info.ready);
+  });
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────
