@@ -179,7 +179,10 @@
           <div class="form-fields" style="margin-top:12px">
             <div class="field">
               <label>TMDB API Key</label>
-              <input type="text" id="s-tmdb-key" placeholder="Paste your API key here" />
+              <div class="secret-field">
+                <input type="password" id="s-tmdb-key" placeholder="Paste your API key here" />
+                <button type="button" class="secret-toggle" data-target="s-tmdb-key" aria-label="Show API key"></button>
+              </div>
             </div>
           </div>
         </div>
@@ -198,7 +201,10 @@
               </div>
               <div class="field" style="flex:2">
                 <label>Password</label>
-                <input type="text" id="s-vlc-password" placeholder="leave empty if none" />
+                <div class="secret-field">
+                  <input type="password" id="s-vlc-password" placeholder="leave empty if none" />
+                  <button type="button" class="secret-toggle" data-target="s-vlc-password" aria-label="Show password"></button>
+                </div>
               </div>
             </div>
           </div>

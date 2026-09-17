@@ -556,6 +556,7 @@ nav * { -webkit-app-region: no-drag; }
 .field input[type="text"],
 .field input[type="number"],
 .field input[type="date"],
+.field input[type="password"],
 .field textarea {
   width: 100%;
   min-width: 0;
@@ -577,6 +578,29 @@ nav * { -webkit-app-region: no-drag; }
 }
 .field textarea { resize: vertical; min-height: 60px; }
 .field-row { display: flex; gap: 10px; }
+
+/* Secret field with show/hide toggle */
+.secret-field { position: relative; display: flex; align-items: center; }
+.secret-field input { padding-right: 38px !important; }
+.secret-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  border-radius: 6px;
+  transition: color 0.15s;
+  z-index: 1;
+}
+.secret-toggle:hover { color: var(--text); }
+.secret-toggle.revealed { color: var(--accent); }
 
 /* Segmented buttons */
 .seg-group {
